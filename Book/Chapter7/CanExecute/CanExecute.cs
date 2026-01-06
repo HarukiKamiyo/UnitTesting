@@ -67,12 +67,28 @@ namespace Book.Chapter7.CanExecute
         }
     }
 
+    // 本書のサンプルコードはnullで返すダミー実装になっていたため、独自に解釈し実装する
     public class UserFactory
     {
-        // 変更なし（Create メソッドの実装は省略されているが、User オブジェクトの生成ロジックを担う）
+        // UserFactory.Create の実装例
         public static User Create(object[] data)
         {
-            return null;
+            // データが想定される最小限の要素数を持っていることを確認
+            // User のコンストラクタは 4つの引数を持つため、少なくとも 4つ以上のデータが必要
+            Precondition.Requires(data != null && data.Length >= 4);
+
+            // データベースのレコードの列順序に応じて、データを適切な型にキャストする
+            int userId = (int)data[0];
+            string email = (string)data[1];
+            
+            // UserType は整数値として保存されていると仮定し、Enumにキャスト
+            UserType type = (UserType)data[2]; 
+            
+            // IsEmailConfirmed はブール値として保存されていると仮定
+            bool isEmailConfirmed = (bool)data[3]; 
+
+            // 抽出したデータを使って User エンティティのインスタンスを生成し、返す
+            return new User(userId, email, type, isEmailConfirmed);
         }
     }
 

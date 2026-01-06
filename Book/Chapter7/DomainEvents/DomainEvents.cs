@@ -107,24 +107,42 @@ namespace Book.Chapter7.DomainEvents
     /// </summary>
     public class EmailChangedEvent
     {
+        // 変更後のユーザーを特定するためのID（イベントデータ）
         public int UserId { get; }
+        // 変更後の新しいメールアドレス（イベントデータ）
         public string NewEmail { get; }
 
+        /// <summary>
+        /// ドメイン・イベントのコンストラクタ。
+        /// イベントが持つべきデータを設定し、外部からの変更を防ぐためプロパティは読み取り専用とする。
+        /// </summary>
         public EmailChangedEvent(int userId, string newEmail)
         {
             UserId = userId;
             NewEmail = newEmail;
         }
 
-        // 【新規】FluentAssertions やテストで比較できるように、
-        // 値オブジェクトとして機能させるための Equals と GetHashCode メソッドのオーバーライド
+        // --- 値オブジェクトとしての比較を実装するオーバーライド ---
+        
+        /// <summary>
+        /// 派生クラスまたは内部で利用される Equals 実装。
+        /// 2つの EmailChangedEvent オブジェクトが「値」として等しいかどうかを判断する。
+        /// ドメイン・イベントは値オブジェクトであるため、すべてのプロパティ（UserIdとNewEmail）が等しければ、
+        /// 別のインスタンスであっても等しいと見なされる。
+        /// </summary>
         protected bool Equals(EmailChangedEvent other)
         {
+            // UserId と NewEmail の値が両方とも一致するかを確認する
             return UserId == other.UserId && string.Equals(NewEmail, other.NewEmail);
         }
 
+        /// <summary>
+        /// object から継承された Equals メソッドのオーバーライド。
+        /// 外部からの比較要求（例: `eventA.Equals(eventB)`) を処理する。
+        /// </summary>
         public override bool Equals(object obj)
         {
+            // Nullチェック、参照の同一性チェック、型チェックを経て、最終的に protected Equals を呼び出す。
             if (ReferenceEquals(null, obj))
             {
                 return false;
@@ -143,10 +161,22 @@ namespace Book.Chapter7.DomainEvents
             return Equals((EmailChangedEvent)obj);
         }
 
+        /// <summary>
+        /// Equals メソッドをオーバーライドする場合に必須となる GetHashCode のオーバーライド。
+        /// ハッシュコードは、Equals が true を返すオブジェクト同士で同じ値を返す必要がある。
+        /// これにより、ハッシュテーブルや辞書などで正しくオブジェクトが扱われることが保証される。
+        /// UserIdとNewEmailの値を組み合わせてユニークなハッシュコードを生成している。
+        /// 
+        /// 値オブジェクトについて、https://zenn.dev/yamachan0625/books/ddd-hands-on/viewer/chapter8_value_object
+        /// この本の42, 43ページも参考になる。
+        /// </summary>
         public override int GetHashCode()
         {
+            // unchecked は、計算結果がその変数の型（この場合は int）の上限を超えてしまったときに、「エラー（例外）を出さずに、あふれた分を切り捨てて計算を続ける」 という指示
             unchecked
             {
+                // 値オブジェクトの全プロパティのハッシュ値を組み合わせる
+                // UserId と Email の組み合わせが1つでも違えば、全く違うハッシュ値（棚番号）になる
                 return (UserId * 397) ^ (NewEmail != null ? NewEmail.GetHashCode() : 0);
             }
         }

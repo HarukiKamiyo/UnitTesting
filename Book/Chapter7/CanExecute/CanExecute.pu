@@ -1,0 +1,105 @@
+@startuml
+
+' スタイル設定
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+
+package "Book.Chapter7.CanExecute" {
+
+    ' --- Domain Layer (ドメイン・モデル) ---
+    class User {
+        + UserId : int
+        + Email : string
+        + Type : UserType
+        + IsEmailConfirmed : bool
+        --
+        + <<create>> User(userId: int, email: string, type: UserType, isEmailConfirmed: bool)
+        + CanChangeEmail() : string
+        + ChangeEmail(newEmail: string, company: Company) : void
+    }
+
+    enum UserType {
+        Customer = 1
+        Employee = 2
+    }
+
+    class Company {
+        + DomainName : string
+        + NumberOfEmployees : int
+        --
+        + <<create>> Company(domainName: string, numberOfEmployees: int)
+        + ChangeNumberOfEmployees(delta: int) : void
+        + IsEmailCorporate(email: string) : bool
+    }
+
+    ' --- Factories (ファクトリ) ---
+    class UserFactory {
+        + {static} Create(data: object[]) : User
+    }
+
+    class CompanyFactory {
+        + {static} Create(data: object[]) : Company
+    }
+
+    ' --- Application Service Layer (コントローラ) ---
+    class UserController {
+        - _database : Database
+        - _messageBus : MessageBus
+        --
+        + ChangeEmail(userId: int, newEmail: string) : string
+    }
+
+    ' --- Infrastructure / Utilities (インフラ・ユーティリティ) ---
+    class Database {
+        + GetUserById(userId: int) : object[]
+        + GetUserByEmail(email: string) : User
+        + SaveUser(user: User) : void
+        + GetCompany() : object[]
+        + SaveCompany(company: Company) : void
+    }
+
+    class MessageBus {
+        - _bus : IBus
+        --
+        + SendEmailChangedMessage(userId: int, newEmail: string) : void
+    }
+
+    interface IBus {
+        + Send(message: string) : void
+    }
+
+    class Precondition <<static>> {
+        + {static} Requires(precondition: bool, message: string) : void
+    }
+}
+
+' --- 依存関係の定義 ---
+
+' User関係
+User --> UserType : uses
+User ..> Company : uses (in ChangeEmail)
+User ..> Precondition : uses
+
+' Company関係
+Company ..> Precondition : uses
+
+' Factory関係
+UserFactory ..> User : <<create>>
+UserFactory ..> Precondition : uses
+CompanyFactory ..> Company : <<create>>
+CompanyFactory ..> Precondition : uses
+
+' Controller関係
+UserController --> Database : uses
+UserController --> MessageBus : uses
+UserController ..> UserFactory : calls
+UserController ..> CompanyFactory : calls
+UserController ..> User : manipulates
+UserController ..> Company : manipulates
+
+' Infrastructure関係
+MessageBus --> IBus : uses
+Database ..> User : uses (SaveUser)
+Database ..> Company : uses (SaveCompany)
+
+@enduml

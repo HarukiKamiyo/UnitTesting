@@ -1,0 +1,113 @@
+@startuml
+' スタイル設定
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+
+package "Book.Chapter7.DomainEvents" {
+
+    ' --- Domain Layer (ドメイン・モデル) ---
+    class User {
+        + UserId : int
+        + Email : string
+        + Type : UserType
+        + IsEmailConfirmed : bool
+        ' ドメイン・イベントのリスト
+        + EmailChangedEvents : List<EmailChangedEvent>
+        --
+        + <<create>> User(userId: int, email: string, type: UserType, isEmailConfirmed: bool)
+        + CanChangeEmail() : string
+        + ChangeEmail(newEmail: string, company: Company) : void
+    }
+
+    ' ドメイン・イベント（値オブジェクト）
+    class EmailChangedEvent {
+        + UserId : int
+        + NewEmail : string
+        --
+        + <<create>> EmailChangedEvent(userId: int, newEmail: string)
+        # Equals(other: EmailChangedEvent) : bool
+        + Equals(obj: object) : bool
+        + GetHashCode() : int
+    }
+
+    enum UserType {
+        Customer = 1
+        Employee = 2
+    }
+
+    class Company {
+        + DomainName : string
+        + NumberOfEmployees : int
+        --
+        + <<create>> Company(domainName: string, numberOfEmployees: int)
+        + ChangeNumberOfEmployees(delta: int) : void
+        + IsEmailCorporate(email: string) : bool
+    }
+
+    ' --- Application Service Layer (コントローラ) ---
+    class UserController {
+        - _database : Database
+        - _messageBus : MessageBus
+        --
+        + ChangeEmail(userId: int, newEmail: string) : string
+    }
+
+    ' --- Factories ---
+    class UserFactory {
+        + {static} Create(data: object[]) : User
+    }
+
+    class CompanyFactory {
+        + {static} Create(data: object[]) : Company
+    }
+
+    ' --- Infrastructure ---
+    class MessageBus {
+        - _bus : IBus
+        --
+        + SendEmailChangedMessage(userId: int, newEmail: string) : void
+    }
+
+    interface IBus {
+        + Send(message: string) : void
+    }
+
+    class Database {
+        + GetUserById(userId: int) : object[]
+        + GetCompany() : object[]
+        + SaveUser(user: User) : void
+        + SaveCompany(company: Company) : void
+    }
+
+    class Precondition <<static>> {
+        + {static} Requires(precondition: bool, message: string) : void
+    }
+}
+
+' --- 依存関係 ---
+
+' Userとイベントの関係（重要）
+User *-- "*" EmailChangedEvent : contains (generates) >
+User --> UserType : uses
+User ..> Company : uses
+User ..> Precondition : uses
+
+' Controllerの処理フロー
+UserController --> Database : uses
+UserController --> MessageBus : uses
+UserController ..> User : manipulates
+' コントローラがイベントを読み取って処理する関係
+UserController ..> EmailChangedEvent : reads & dispatches
+UserController ..> UserFactory : calls
+UserController ..> CompanyFactory : calls
+
+' インフラ関係
+MessageBus --> IBus : uses
+Database ..> User : uses
+Database ..> Company : uses
+
+' ファクトリ関係
+UserFactory ..> User : creates
+CompanyFactory ..> Company : creates
+
+@enduml
